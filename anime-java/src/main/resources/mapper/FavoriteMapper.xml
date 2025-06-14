@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiejinxin.mapper.FavoriteMapper">
+    
+    <!-- 添加收藏 -->
+    <insert id="addFavorite" parameterType="java.util.Map">
+        INSERT INTO favorite (
+            user_id,
+            anime_id,
+            created_time
+        ) VALUES (
+            #{userId},
+            #{animeId},
+            NOW()
+        )
+    </insert>
+
+    <!-- 取消收藏 -->
+    <delete id="removeFavorite" parameterType="java.util.Map">
+        DELETE FROM favorite 
+        WHERE user_id = #{userId} 
+        AND anime_id = #{animeId}
+    </delete>
+
+    <!-- 获取用户收藏列表 -->
+    <select id="getUserFavorites" resultType="java.util.Map">
+        SELECT 
+            f.id,
+            f.anime_id,
+            f.created_time,
+            a.title as anime_title,
+            a.cover_image,
+            a.description,
+            a.status,
+            (SELECT CONCAT('第', episode_number, '集') 
+             FROM anime_episode 
+             WHERE anime_id = a.id 
+             ORDER BY episode_number DESC LIMIT 1) as latest_episode
+        FROM favorite f
+        JOIN anime a ON f.anime_id = a.id
+        WHERE f.user_id = #{userId}
+        ORDER BY f.created_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取用户收藏总数 -->
+    <select id="getUserFavoriteCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM favorite 
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 检查是否已收藏 -->
+    <select id="checkFavorite" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM favorite 
+        WHERE user_id = #{userId} 
+        AND anime_id = #{animeId}
+    </select>
+</mapper> 

@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiejinxin.mapper.RecommendationMapper">
+    
+    <!-- 获取用户观看过的动漫及其标签 -->
+    <select id="getUserWatchedAnimeTags" resultType="java.util.Map">
+        SELECT 
+            w.user_id,
+            w.anime_id,
+            w.watch_time,
+            w.watch_duration,
+            w.total_duration,
+            CAST(w.watch_progress AS DECIMAL(5,2)) as watch_progress,
+            w.is_finished,
+            atw.tag_name as tags,
+            CAST(atw.weight AS DECIMAL(5,2)) as weight
+        FROM watch_history w
+        LEFT JOIN anime_tag_weights atw ON w.anime_id = atw.anime_id
+        WHERE w.user_id = #{userId}
+    </select>
+    
+    <!-- 获取用户偏好标签 -->
+    <select id="getUserPreferences" resultType="java.util.Map">
+        SELECT 
+            tag_name,
+            CAST(weight AS DECIMAL(5,2)) as weight,
+            update_time
+        FROM user_preferences
+        WHERE user_id = #{userId}
+    </select>
+    
+    <!-- 更新用户标签偏好 -->
+    <insert id="updateUserPreference">
+        INSERT INTO user_preferences (user_id, tag_name, weight)
+        VALUES (#{userId}, #{tagName}, #{weight})
+        ON DUPLICATE KEY UPDATE
+        weight = #{weight},
+        update_time = CURRENT_TIMESTAMP
+    </insert>
+    
+    <!-- 获取候选动漫列表 -->
+    <select id="getFinishedAnimes" resultType="java.util.Map">
+        SELECT 
+            id,
+            title,
+            genres,
+            release_date
+        FROM anime
+        WHERE status = '完结'
+    </select>
+    
+    <!-- 批量保存推荐结果 -->
+    <insert id="saveRecommendations">
+        INSERT INTO recommendations 
+            (user_id, anime_id, score, reason, create_time, is_shown)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.animeId}, #{item.score}, #{item.reason}, 
+             CURRENT_TIMESTAMP, 0)
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        score = VALUES(score),
+        reason = VALUES(reason),
+        create_time = CURRENT_TIMESTAMP,
+        is_shown = 0
+    </insert>
+    
+    <!-- 获取每日推荐 -->
+    <select id="getDailyRecommendations" resultType="java.util.Map">
+        SELECT 
+            r.id as recommendation_id,
+            a.id,
+            a.title,
+            a.cover_image,
+            a.description,
+            GROUP_CONCAT(DISTINCT atw.tag_name) as tags,
+            CAST(r.score AS DECIMAL(5,2)) as score,
+            r.reason,
+            COUNT(DISTINCT ac.id) as comment_count
+        FROM recommendations r
+        JOIN anime a ON r.anime_id = a.id
+        LEFT JOIN anime_tag_weights atw ON a.id = atw.anime_id
+        LEFT JOIN anime_comments ac ON a.id = ac.anime_id
+        WHERE r.user_id = #{userId}
+        AND r.create_time >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+        GROUP BY r.id, a.id, a.title, a.cover_image, a.description, r.score, r.reason
+        ORDER BY r.score DESC
+        LIMIT #{limit}
+    </select>
+    
+    <!-- 获取更多推荐 -->
+    <select id="getMoreRecommendations" resultType="java.util.Map">
+        SELECT 
+            r.id as recommendation_id,
+            a.id,
+            a.title,
+            a.cover_image,
+            a.description,
+            GROUP_CONCAT(DISTINCT atw.tag_name) as tags,
+            CAST(r.score AS DECIMAL(5,2)) as score,
+            r.reason,
+            COUNT(DISTINCT ac.id) as comment_count
+        FROM recommendations r
+        JOIN anime a ON r.anime_id = a.id
+        LEFT JOIN anime_tag_weights atw ON a.id = atw.anime_id
+        LEFT JOIN anime_comments ac ON a.id = ac.anime_id
+        WHERE r.user_id = #{userId}
+        GROUP BY r.id, a.id, a.title, a.cover_image, a.description, r.score, r.reason
+        ORDER BY r.score DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+    
+    <!-- 获取所有动漫及其标签 -->
+    <select id="getAllAnimeWithTags" resultType="java.util.Map">
+        SELECT 
+            a.id,
+            a.title,
+            a.cover_image,
+            a.description,
+            GROUP_CONCAT(DISTINCT atw.tag_name) as tags,
+            COUNT(DISTINCT ac.id) as comment_count,
+            CAST(MAX(atw.weight) AS DECIMAL(5,2)) as weight
+        FROM anime a
+        LEFT JOIN anime_tag_weights atw ON a.id = atw.anime_id
+        LEFT JOIN anime_comments ac ON a.id = ac.anime_id
+        WHERE a.status = '完结'
+        GROUP BY a.id, a.title, a.cover_image, a.description
+    </select>
+    
+    <!-- 获取热门动漫 -->
+    <select id="getPopularAnime" resultType="java.util.Map">
+        SELECT 
+            a.id,
+            a.title,
+            a.cover_image,
+            a.description,
+            GROUP_CONCAT(DISTINCT atw.tag_name) as tags,
+            COUNT(DISTINCT ac.id) as comment_count
+        FROM anime a
+        LEFT JOIN anime_tag_weights atw ON a.id = atw.anime_id
+        LEFT JOIN anime_comments ac ON a.id = ac.anime_id
+        WHERE a.status = '完结'
+        GROUP BY a.id, a.title, a.cover_image, a.description
+        ORDER BY comment_count DESC
+        LIMIT 10
+    </select>
+</mapper> 

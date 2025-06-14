@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiejinxin.mapper.WatchHistoryMapper">
+    
+    <insert id="addWatchHistory" parameterType="java.util.Map">
+        INSERT INTO watch_history (
+            user_id, 
+            anime_id, 
+            episode_id, 
+            episode_number,
+            watch_time
+        ) VALUES (
+            #{userId}, 
+            #{animeId}, 
+            #{episodeId}, 
+            #{episodeNumber},
+            NOW()
+        ) ON DUPLICATE KEY UPDATE 
+            episode_id = VALUES(episode_id),
+            episode_number = VALUES(episode_number),
+            watch_time = NOW()
+    </insert>
+
+    <select id="getWatchHistory" resultType="java.util.Map">
+        SELECT 
+            h.id,
+            h.anime_id,
+            h.episode_id,
+            h.episode_number,
+            h.watch_time,
+            a.title as anime_title,
+            a.cover_image,
+            CONCAT('第', h.episode_number, '集') as episode_title,
+            ae.title as episode_name
+        FROM watch_history h
+        JOIN anime a ON h.anime_id = a.id
+        LEFT JOIN anime_episode ae ON h.episode_id = ae.id
+        WHERE h.user_id = #{userId}
+        ORDER BY h.watch_time DESC
+        LIMIT 10
+    </select>
+
+    <delete id="clearWatchHistory">
+        DELETE FROM watch_history 
+        WHERE user_id = #{userId}
+    </delete>
+</mapper> 

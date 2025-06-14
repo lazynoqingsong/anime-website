@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.xiejinxin.mapper.AnimeMapper">
+    <!-- 获取动漫详情 -->
+    <select id="getAnimeById" resultType="java.util.Map">
+        SELECT 
+            a.id,
+            a.title,
+            a.cover_image,
+            a.release_date,
+            a.status,
+            a.description,
+            a.studio,
+            a.broadcast_day,
+            a.broadcast_time,
+            a.format,
+            a.genres,
+            (SELECT COUNT(*) FROM anime_episode WHERE anime_id = a.id) as total_episodes,
+            (SELECT CONCAT('第', episode_number, '集') 
+             FROM anime_episode 
+             WHERE anime_id = a.id 
+             ORDER BY episode_number DESC LIMIT 1) as latest_episode
+        FROM anime a
+        WHERE a.id = #{id}
+    </select>
+
+    <!-- 获取动漫剧集列表 -->
+    <select id="getEpisodesByAnimeId" resultType="java.util.Map">
+        SELECT 
+            id,
+            episode_number,
+            title,
+            video_url,
+            duration,
+            created_at
+        FROM anime_episode
+        WHERE anime_id = #{animeId}
+        ORDER BY episode_number ASC
+    </select>
+
+    <!-- 获取每周更新列表 -->
+    <select id="getAnimesByDay" resultType="java.util.Map">
+        SELECT 
+            id,
+            title,
+            cover_image,
+            broadcast_time,
+            status,
+            (SELECT CONCAT('第', episode_number, '集') 
+             FROM anime_episode 
+             WHERE anime_id = a.id 
+             ORDER BY episode_number DESC LIMIT 1) as latest_episode
+        FROM anime a
+        WHERE broadcast_day = #{day}
+        ORDER BY broadcast_time ASC
+    </select>
+
+    <!-- 获取最近更新的动漫 -->
+    <select id="getRecentAnimes" resultType="java.util.Map">
+        SELECT 
+            a.id,
+            a.title,
+            a.cover_image,
+            a.release_date,
+            a.broadcast_day,
+            a.broadcast_time,
+            (SELECT CONCAT('第', episode_number, '集') 
+             FROM anime_episode 
+             WHERE anime_id = a.id 
+             ORDER BY episode_number DESC LIMIT 1) as latest_episode
+        FROM anime a
+        ORDER BY 
+            (SELECT MAX(created_at) FROM anime_episode WHERE anime_id = a.id) DESC
+        LIMIT 12
+    </select>
+
+    <!-- 根据名称和类型获取分类ID -->
+    <select id="getCategoryIdByName" resultType="java.lang.Integer">
+        SELECT id 
+        FROM category 
+        WHERE name = #{name} AND type = #{type}
+        LIMIT 1
+    </select>
+
+    <!-- 根据筛选条件获取动漫列表 -->
+    <select id="getAnimesByFiltersWithPaging" resultType="java.util.Map">
+        SELECT DISTINCT
+            a.id,
+            a.title,
+            a.cover_image,
+            a.release_date,
+            a.status,
+            a.genres,
+            a.format,
+            a.description,
+            a.studio,
+            (SELECT CONCAT('第', episode_number, '集') 
+             FROM anime_episode 
+             WHERE anime_id = a.id 
+             ORDER BY episode_number DESC LIMIT 1) as latest_episode
+        FROM anime a
+        LEFT JOIN anime_category ac ON a.id = ac.anime_id
+        <where>
+            <if test="region_id != null">
+                AND EXISTS (
+                    SELECT 1 FROM anime_category 
+                    WHERE anime_id = a.id 
+                    AND category_id = #{region_id}
+                )
+            </if>
+            <if test="format_id != null">
+                AND EXISTS (
+                    SELECT 1 FROM anime_category 
+                    WHERE anime_id = a.id 
+                    AND category_id = #{format_id}
+                )
+            </if>
+            <if test="letter_id != null">
+                AND EXISTS (
+                    SELECT 1 FROM anime_category 
+                    WHERE anime_id = a.id 
+                    AND category_id = #{letter_id}
+                )
+            </if>
+            <if test="season_id != null">
+                AND EXISTS (
+                    SELECT 1 FROM anime_category ac2 
+                    WHERE ac2.anime_id = a.id 
+                    AND ac2.category_id = #{season_id}
+                )
+            </if>
+            <if test="year != null and year != ''">
+                AND YEAR(a.release_date) = #{year}
+            </if>
+            <if test="status != null and status != ''">
+                AND a.status = #{status}
+            </if>
+            <if test="genre != null and genre != ''">
+                AND a.genres LIKE CONCAT('%', #{genre}, '%')
+            </if>
+        </where>
+        ORDER BY a.release_date DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取总记录数 -->
+    <select id="getTotalCount" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT a.id)
+        FROM anime a
+        LEFT JOIN anime_category ac ON a.id = ac.anime_id
+        LEFT JOIN category c ON ac.category_id = c.id
+        <where>
+            <if test="region_id != null">
+                AND EXISTS (
+                    SELECT 1 FROM anime_category ac2 
+                    WHERE ac2.anime_id = a.id 
+                    AND ac2.category_id = #{region_id}
+                )
+            </if>
+            <if test="format_id != null">
+                AND EXISTS (
+                    SELECT 1 FROM anime_category ac2 
+                    WHERE ac2.anime_id = a.id 
+                    AND ac2.category_id = #{format_id}
+                )
+            </if>
+            <if test="letter_id != null">
+                AND EXISTS (
+                    SELECT 1 FROM anime_category ac2 
+                    WHERE ac2.anime_id = a.id 
+                    AND ac2.category_id = #{letter_id}
+                )
+            </if>
+            <if test="season_id != null">
+                AND EXISTS (
+                    SELECT 1 FROM anime_category ac2 
+                    WHERE ac2.anime_id = a.id 
+                    AND ac2.category_id = #{season_id}
+                )
+            </if>
+            <if test="year != null and year != ''">
+                AND YEAR(a.release_date) = #{year}
+            </if>
+            <if test="status != null and status != ''">
+                AND a.status = #{status}
+            </if>
+            <if test="genre != null and genre != ''">
+                AND a.genres LIKE CONCAT('%', #{genre}, '%')
+            </if>
+        </where>
+    </select>
+
+    <!-- 获取分类列表 -->
+    <select id="getCategoriesByType" resultType="java.util.Map">
+        <choose>
+            <when test="type == 'letter'">
+                SELECT 
+                    c.id,
+                    c.name,
+                    COUNT(ac.anime_id) as count
+                FROM category c
+                LEFT JOIN anime_category ac ON c.id = ac.category_id
+                WHERE c.type = 'letter'
+                GROUP BY c.id, c.name
+                ORDER BY c.name ASC
+            </when>
+            <when test="type == 'region'">
+                SELECT 
+                    c.id,
+                    c.name,
+                    COUNT(ac.anime_id) as count
+                FROM category c
+                LEFT JOIN anime_category ac ON c.id = ac.category_id
+                WHERE c.type = 'region'
+                GROUP BY c.id, c.name
+                ORDER BY c.name ASC
+            </when>
+            <when test="type == 'format'">
+                SELECT 
+                    c.id,
+                    c.name,
+                    COUNT(ac.anime_id) as count
+                FROM category c
+                LEFT JOIN anime_category ac ON c.id = ac.category_id
+                WHERE c.type = 'format'
+                GROUP BY c.id, c.name
+                ORDER BY c.name ASC
+            </when>
+            <when test="type == 'year'">
+                SELECT YEAR(release_date) as name, COUNT(*) as count
+                FROM anime
+                WHERE release_date IS NOT NULL
+                GROUP BY YEAR(release_date)
+                ORDER BY name DESC
+            </when>
+            <when test="type == 'season'">
+                SELECT 
+                    c.id,
+                    c.name,
+                    COUNT(ac.anime_id) as count
+                FROM category c
+                LEFT JOIN anime_category ac ON c.id = ac.category_id
+                WHERE c.type = 'season'
+                GROUP BY c.id, c.name
+
+            </when>
+            <otherwise>
+                SELECT 
+                    c.id,
+                    c.name,
+                    COUNT(ac.anime_id) as count
+                FROM category c
+                LEFT JOIN anime_category ac ON c.id = ac.category_id
+                WHERE c.type = #{type}
+                GROUP BY c.id, c.name
+                ORDER BY c.name ASC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 搜索动漫 -->
+    <select id="searchAnimes" resultType="java.util.Map">
+        SELECT DISTINCT
+            a.id,
+            a.title,
+            a.cover_image,
+            a.studio,
+            a.description,
+            a.genres,
+            a.status,
+            a.format,
+            a.release_date,
+            (SELECT CONCAT('第', episode_number, '集') 
+             FROM anime_episode 
+             WHERE anime_id = a.id 
+             ORDER BY episode_number DESC LIMIT 1) as latest_episode
+        FROM anime a
+        WHERE a.title LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY a.release_date DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取搜索结果总数 -->
+    <select id="getSearchTotal" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT id)
+        FROM anime
+        WHERE title LIKE CONCAT('%', #{keyword}, '%')
+    </select>
+
+    <!-- 获取最新更新的动漫列表(用于最近更新栏) -->
+    <select id="getLatestUpdatedAnimes" resultType="java.util.Map">
+        SELECT 
+            a.id,
+            a.title,
+            (SELECT MAX(created_at) FROM anime_episode WHERE anime_id = a.id) as update_time
+        FROM anime a
+        WHERE EXISTS (
+            SELECT 1 FROM anime_episode WHERE anime_id = a.id
+        )
+        ORDER BY 
+            (SELECT MAX(created_at) FROM anime_episode WHERE anime_id = a.id) DESC
+        LIMIT 10
+    </select>
+
+    <!-- 获取用户观看历史 -->
+    <select id="getWatchHistory" resultType="java.util.Map">
+        SELECT 
+            h.id,
+            h.anime_id,
+            h.episode_id,
+            h.episode_number,
+            h.watch_time,
+            a.title as anime_title,
+            a.cover_image
+        FROM watch_history h
+        JOIN anime a ON h.anime_id = a.id
+        WHERE h.user_id = #{userId}
+        ORDER BY h.watch_time DESC
+        LIMIT 10
+    </select>
+
+    <!-- 添加观看记录 -->
+    <insert id="addWatchHistory">
+        INSERT INTO watch_history (user_id, anime_id, episode_id, episode_number)
+        VALUES (#{userId}, #{animeId}, #{episodeId}, #{episodeNumber})
+    </insert>
+
+    <!-- 清空用户观看历史 -->
+    <delete id="clearWatchHistory">
+        DELETE FROM watch_history WHERE user_id = #{userId}
+    </delete>
+
+</mapper> 

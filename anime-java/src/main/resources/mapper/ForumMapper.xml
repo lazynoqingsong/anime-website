@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiejinxin.mapper.ForumMapper">
+    
+    <!-- 获取帖子列表 -->
+    <select id="getPostList" resultType="java.util.Map">
+        SELECT 
+            p.id,
+            p.user_id as userId,
+            p.title,
+            p.content,
+            p.created_time as createdTime,
+            p.view_count as viewCount,
+            p.reply_count as replyCount,
+            u.username
+        FROM 
+            forum_post p
+        JOIN 
+            user u ON p.user_id = u.id
+        <if test="sortBy != null and sortBy == 'hot'">
+            ORDER BY p.reply_count DESC, p.view_count DESC, p.created_time DESC
+        </if>
+        <if test="sortBy == null or sortBy == 'latest'">
+            ORDER BY p.created_time DESC
+        </if>
+        LIMIT #{offset}, #{limit}
+    </select>
+    
+    <!-- 获取帖子总数 -->
+    <select id="getPostCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM forum_post
+    </select>
+    
+    <!-- 获取帖子详情 -->
+    <select id="getPostById" resultType="java.util.Map">
+        SELECT 
+            p.id,
+            p.user_id as userId,
+            p.title,
+            p.content,
+            p.created_time as createdTime,
+            p.view_count as viewCount,
+            p.reply_count as replyCount,
+            u.username
+        FROM 
+            forum_post p
+        JOIN 
+            user u ON p.user_id = u.id
+        WHERE 
+            p.id = #{id}
+    </select>
+    
+    <!-- 创建新帖子 -->
+    <insert id="createPost" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO forum_post (
+            user_id,
+            title,
+            content,
+            created_time,
+            view_count,
+            reply_count
+        ) VALUES (
+            #{userId},
+            #{title},
+            #{content},
+            NOW(),
+            0,
+            0
+        )
+    </insert>
+    
+    <!-- 增加帖子浏览次数 -->
+    <update id="increaseViewCount">
+        UPDATE forum_post
+        SET view_count = view_count + 1
+        WHERE id = #{id}
+    </update>
+    
+    <!-- 获取帖子回复列表 -->
+    <select id="getRepliesByPostId" resultType="java.util.Map">
+        SELECT 
+            r.id,
+            r.post_id as postId,
+            r.user_id as userId,
+            r.content,
+            r.created_time as createdTime,
+            u.username
+        FROM 
+            forum_reply r
+        JOIN 
+            user u ON r.user_id = u.id
+        WHERE 
+            r.post_id = #{postId}
+        ORDER BY 
+            r.created_time ASC
+    </select>
+    
+    <!-- 创建回复 -->
+    <insert id="createReply">
+        INSERT INTO forum_reply (
+            post_id,
+            user_id,
+            content,
+            created_time
+        ) VALUES (
+            #{postId},
+            #{userId},
+            #{content},
+            NOW()
+        )
+    </insert>
+    
+    <!-- 更新帖子回复数 -->
+    <update id="updateReplyCount">
+        UPDATE forum_post
+        SET reply_count = (
+            SELECT COUNT(*) FROM forum_reply WHERE post_id = #{postId}
+        )
+        WHERE id = #{postId}
+    </update>
+</mapper> 

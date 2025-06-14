@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiejinxin.mapper.CommentMapper">
+    
+    <insert id="addComment" parameterType="java.util.Map">
+        INSERT INTO anime_comments (
+            anime_id,
+            user_id,
+            content,
+            created_time
+        ) VALUES (
+            #{animeId},
+            #{userId},
+            #{content},
+            NOW()
+        )
+    </insert>
+
+    <select id="getComments" resultType="java.util.Map">
+        SELECT 
+            c.id,
+            c.content,
+            c.created_time,
+            u.username,
+            ROW_NUMBER() OVER (ORDER BY c.created_time DESC) as comment_number
+        FROM anime_comments c
+        JOIN user u ON c.user_id = u.id
+        WHERE c.anime_id = #{animeId}
+        ORDER BY c.created_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="getCommentCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM anime_comments 
+        WHERE anime_id = #{animeId}
+    </select>
+
+    <!-- 获取用户评论列表 -->
+    <select id="getUserComments" resultType="java.util.Map">
+        SELECT 
+            c.id,
+            c.content,
+            c.created_time,
+            a.id as anime_id,
+            a.title as anime_title,
+            a.cover_image
+        FROM anime_comments c
+        JOIN anime a ON c.anime_id = a.id
+        WHERE c.user_id = #{userId}
+        ORDER BY c.created_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取用户评论总数 -->
+    <select id="getUserCommentCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) 
+        FROM anime_comments 
+        WHERE user_id = #{userId}
+    </select>
+</mapper> 

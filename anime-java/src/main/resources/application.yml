@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: anime-java
+  datasource:
+    url: jdbc:mysql://localhost:3306/anime?useSSL=false&useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  web:
+    resources:
+      static-locations: classpath:/static/
+  mvc:
+    static-path-pattern: /**
+  servlet:
+    multipart:
+      max-file-size: -1
+      max-request-size: -1
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+server:
+  port: 8080
+  tomcat:
+    max-swallow-size: -1
+    max-http-form-post-size: -1
+  servlet:
+    encoding:
+      force: true
